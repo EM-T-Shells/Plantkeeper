@@ -361,8 +361,9 @@ function compressImage(file, maxDim = 640, quality = 0.75) {
 const GEMINI_URL = key =>
   `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(key)}`;
 
-async function geminiJSON(promptText, photoDataUrl) {
+async function geminiJSON(promptText, photoDataUrl, _attempt) {
   if (!state.apiKey) throw new Error("NO_KEY");
+  const attempt = _attempt || 0;
   const parts = [{ text: promptText }];
   if (photoDataUrl) {
     parts.push({ inline_data: { mime_type: "image/jpeg", data: photoDataUrl.split(",")[1] } });
@@ -376,10 +377,17 @@ async function geminiJSON(promptText, photoDataUrl) {
     })
   });
   if (!res.ok) {
+    // Model overloaded (503) or rate-limited (429): back off and retry a few times.
+    if ((res.status === 503 || res.status === 429) && attempt < 3) {
+      const delayMs = 1500 * Math.pow(5, attempt); // 1.5s, 3s, 6s
+      await new Promise(r => setTimeout(r, delayMs));
+      return geminiJSON(promptText, photoDataUrl, attempt + 1);
+    }
     const body = await res.text().catch(() => "");
     let msg = `API error ${res.status}`;
     try { msg += ": " + (JSON.parse(body).error?.message || "").slice(0, 180); }
     catch { if (body) msg += ": " + body.slice(0, 160); }
+    if (res.status === 503) msg += " — Gemini is overloaded right now, even after retrying. Try again shortly.";
     throw new Error(msg);
   }
   const data = await res.json();
