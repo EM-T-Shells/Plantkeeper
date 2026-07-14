@@ -150,8 +150,18 @@ dialog::backdrop{background:rgba(34,57,44,.45)}
 .info-item b{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--moss-deep);margin-bottom:2px}
 .water-log{font-size:.9rem;color:var(--ink-soft)}
 .modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
-.checkup-box{background:var(--water-light);border:1px solid #BFD9E6;border-radius:10px;padding:12px 14px;margin-top:14px;font-size:.92rem}
-.checkup-box b{color:#1F4B60}
+.checkup-box{background:var(--paper);border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:12px 14px;margin-top:14px;font-size:.92rem}
+.checkup-box.good{border-left-color:var(--moss)}
+.checkup-box.warn{border-left-color:#C9922E}
+.checkup-box.bad{border-left-color:var(--clay)}
+.checkup-box p{margin-top:8px}
+.checkup-box b{display:block;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:1px}
+.verdict-row{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:var(--ink-soft)}
+.verdict-pill{font-weight:700;text-transform:capitalize;color:var(--ink)}
+.verdict-tag{position:absolute;top:8px;left:8px;background:rgba(251,252,249,.94);border-radius:999px;padding:3px 9px;font-size:.7rem;font-weight:700;text-transform:capitalize;box-shadow:0 1px 4px rgba(34,57,44,.18)}
+.verdict-tag.good{color:var(--moss-deep)}
+.verdict-tag.warn{color:#8A6212}
+.verdict-tag.bad{color:var(--clay)}
 .inline-edit{display:flex;align-items:center;gap:8px;font-size:.9rem;margin-top:8px;flex-wrap:wrap}
 .inline-edit input{padding:6px 9px;border:1px solid var(--line);border-radius:7px}
 
@@ -367,7 +377,10 @@ async function geminiJSON(promptText, photoDataUrl) {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}${body ? ": " + body.slice(0, 160) : ""}`);
+    let msg = `API error ${res.status}`;
+    try { msg += ": " + (JSON.parse(body).error?.message || "").slice(0, 180); }
+    catch { if (body) msg += ": " + body.slice(0, 160); }
+    throw new Error(msg);
   }
   const data = await res.json();
   let text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
@@ -375,7 +388,7 @@ async function geminiJSON(promptText, photoDataUrl) {
   return JSON.parse(text);
 }
 
-const CARE_PROMPT = name => `You are a houseplant care expert. The user has a plant named "${name}". A photo may be attached — if so, use it to confirm or correct the species identification.
+const CARE_PROMPT = (name, hasPhoto) => `You are a houseplant care expert. The user has a plant named "${name}".${hasPhoto ? " A photo is attached — use it to confirm or correct the species AND to assess the plant's current condition." : ""}
 Respond with ONLY a JSON object (no markdown, no extra text) with exactly these keys:
 {
  "identifiedAs": "likely species / common name",
@@ -383,19 +396,26 @@ Respond with ONLY a JSON object (no markdown, no extra text) with exactly these 
  "waterAmount": "short practical guidance, e.g. 'about 1 cup, until water drains from the pot'",
  "sunlight": "light needs in one short sentence",
  "repotting": "when/how often to repot in one short sentence",
- "overwaterSigns": "short list-style sentence of signs of overwatering",
- "underwaterSigns": "short list-style sentence of signs of underwatering",
- "sunSigns": "short sentence: signs of too much vs too little sun",
- "tip": "one genuinely useful care tip for this plant"
+ "overwaterSigns": "signs of overwatering",
+ "underwaterSigns": "signs of underwatering",
+ "sunSigns": "signs of too much vs too little sun",
+ "tip": "one genuinely useful care tip",
+ "assessment": ${hasPhoto ? `{
+   "verdict": "exactly one of: healthy | minor issues | needs attention",
+   "observations": "what you actually see in THIS photo — leaf color and texture, drooping, yellowing or browning, spots, new growth, soil surface, pot and drainage, light in the room. 1-3 specific sentences. Never generic filler.",
+   "diagnosis": "what is most likely causing what you see, and why. If it looks healthy, say what specifically tells you that.",
+   "needs": "the one concrete thing the owner should do next"
+ }` : `null`}
 }`;
 
-const CHECKUP_PROMPT = p => `You are a houseplant care expert doing a photo check-up of "${p.name}" (${p.care.identifiedAs || "unknown species"}). Current schedule: watered every ${p.care.frequencyDays} days, ${p.care.waterAmount || "amount unspecified"}. Last watered: ${p.lastWatered || "unknown"}.
-Look at the attached photo and respond with ONLY a JSON object (no markdown) with exactly these keys:
+const CHECKUP_PROMPT = p => `You are a houseplant care expert doing a photo check-up of "${p.name}" (${p.care.identifiedAs || "species unknown"}). Current schedule: water every ${p.care.frequencyDays} days, ${p.care.waterAmount || "amount unspecified"}. Last watered: ${p.lastWatered || "unknown"}.${p.checkup ? ` At the previous check-up (${p.checkup.date}) the notes were: "${(p.checkup.observations || p.checkup.health || "").replace(/"/g, "'")}" — compare against that and mention whether it has improved or worsened.` : ""}
+Look closely at the attached photo and respond with ONLY a JSON object (no markdown) with exactly these keys:
 {
- "health": "one short sentence on how the plant looks",
- "issues": "any visible problems (yellowing, drooping, pests, burn), or 'None visible'",
- "advice": "the single most useful adjustment the owner should make right now",
- "suggestedFrequencyDays": <integer — the recommended days between waterings going forward; repeat the current value if no change needed>
+ "verdict": "exactly one of: healthy | minor issues | needs attention",
+ "observations": "what you actually see — leaf color and texture, drooping, yellowing or browning, spots or pests, new growth, soil surface, pot and drainage, light. 1-3 specific sentences. Never generic filler.",
+ "diagnosis": "what is most likely causing what you see and why. If it looks healthy, say what specifically tells you that.",
+ "needs": "the one concrete thing the owner should do next",
+ "suggestedFrequencyDays": <integer — recommended days between waterings; repeat the current value if no change is needed>
 }`;
 
 /* ================= Tabs ================= */
@@ -438,10 +458,12 @@ document.getElementById("npAiBtn").addEventListener("click", async () => {
   btn.disabled = true;
   setStatus("npStatus", "Asking the plant expert…");
   try {
-    const care = await geminiJSON(CARE_PROMPT(name), pendingPhoto);
+    const care = await geminiJSON(CARE_PROMPT(name, !!pendingPhoto), pendingPhoto);
     care.frequencyDays = Math.max(1, parseInt(care.frequencyDays, 10) || 7);
-    addPlant(name, pendingPhoto, care);
-    setStatus("npStatus", `Added ${name} — identified as ${care.identifiedAs || "unknown"}. Water every ${care.frequencyDays} days.`);
+    const a = care.assessment; delete care.assessment;
+    const checkup = a ? { date: todayISO(), verdict: a.verdict || "", observations: a.observations || "", diagnosis: a.diagnosis || "", needs: a.needs || "" } : null;
+    addPlant(name, pendingPhoto, care, checkup);
+    setStatus("npStatus", `Added ${name} — identified as ${care.identifiedAs || "unknown"}. Water every ${care.frequencyDays} days.${checkup ? " Photo read: " + checkup.verdict + " — open Details for the full assessment." : ""}`);
     resetAddForm();
   } catch (e) {
     setStatus("npStatus", e.message === "NO_KEY" ? "Add your Gemini API key in Settings first." : "AI request failed — " + e.message, true);
@@ -461,13 +483,29 @@ document.getElementById("npManualBtn").addEventListener("click", () => {
   resetAddForm();
 });
 
-function addPlant(name, photo, care) {
+function addPlant(name, photo, care, checkup) {
   state.plants.push({
     id: uid(), name, photo: photo || null, care,
-    lastWatered: todayISO(), history: [todayISO()], checkup: null
+    lastWatered: todayISO(), history: [todayISO()], checkup: checkup || null
   });
   save(); renderPlants();
 }
+
+// Works for both new-style checkups and any saved with the older health/issues/advice keys
+function normCheckup(c) {
+  if (!c) return null;
+  return {
+    date: c.date,
+    verdict: c.verdict || "check-up",
+    observations: c.observations || c.health || "",
+    diagnosis: c.diagnosis || c.issues || "",
+    needs: c.needs || c.advice || ""
+  };
+}
+const verdictClass = v => {
+  const s = (v || "").toLowerCase();
+  return s.includes("attention") ? "bad" : s.includes("minor") ? "warn" : "good";
+};
 function resetAddForm() {
   document.getElementById("npName").value = "";
   npPhoto.value = ""; pendingPhoto = null;
@@ -501,7 +539,7 @@ function renderPlants() {
     const card = document.createElement("div");
     card.className = "plant-card";
     card.innerHTML = `
-      <div class="photo">${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : `<span class="placeholder">🪴</span>`}</div>
+      <div class="photo">${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : `<span class="placeholder">🪴</span>`}${p.checkup ? `<span class="verdict-tag ${verdictClass(normCheckup(p.checkup).verdict)}">${esc(normCheckup(p.checkup).verdict)}</span>` : ""}</div>
       <div class="body">
         <div class="card-top">
           <div>
@@ -554,6 +592,7 @@ function openModal(id) {
   const p = state.plants.find(x => x.id === id);
   if (!p) return;
   const c = p.care, next = nextWaterISO(p), d = daysUntil(next);
+  const cu = normCheckup(p.checkup);
   const rows = [
     ["Identified as", c.identifiedAs], ["How much water", c.waterAmount],
     ["Sunlight", c.sunlight], ["Repotting", c.repotting],
@@ -576,7 +615,12 @@ function openModal(id) {
       <button class="btn btn-ghost" data-savesched="${p.id}" style="padding:6px 12px;font-size:.85rem">Save</button>
     </div>
     ${rows.length ? `<div class="info-list">${rows.map(r => `<div class="info-item"><b>${r[0]}</b>${esc(r[1])}</div>`).join("")}</div>` : ""}
-    ${p.checkup ? `<div class="checkup-box"><b>Last check-up (${fmtDate(p.checkup.date)}):</b> ${esc(p.checkup.health)} ${esc(p.checkup.issues)} <br><b>Advice:</b> ${esc(p.checkup.advice)}</div>` : ""}
+    ${cu ? `<div class="checkup-box ${verdictClass(cu.verdict)}">
+      <div class="verdict-row"><span class="verdict-pill">${esc(cu.verdict)}</span><span>${fmtDate(cu.date)}</span></div>
+      ${cu.observations ? `<p><b>What the AI sees</b>${esc(cu.observations)}</p>` : ""}
+      ${cu.diagnosis ? `<p><b>Likely why</b>${esc(cu.diagnosis)}</p>` : ""}
+      ${cu.needs ? `<p><b>What it needs</b>${esc(cu.needs)}</p>` : ""}
+    </div>` : ""}
     <div class="water-log" style="margin-top:12px">Watering log: ${(p.history || []).slice(-8).map(fmtDate).join(" · ") || "—"}</div>
     <div class="modal-actions">
       <button class="btn btn-water" data-water="${p.id}">💧 Watered today</button>
@@ -615,7 +659,7 @@ modal.addEventListener("change", async e => {
     const photo = await compressImage(inp.files[0]);
     const r = await geminiJSON(CHECKUP_PROMPT(p), photo);
     p.photo = photo; // newest photo becomes the card photo
-    p.checkup = { date: todayISO(), health: r.health || "", issues: r.issues || "", advice: r.advice || "" };
+    p.checkup = { date: todayISO(), verdict: r.verdict || "", observations: r.observations || "", diagnosis: r.diagnosis || "", needs: r.needs || "" };
     const suggested = parseInt(r.suggestedFrequencyDays, 10);
     let msg = "Check-up saved.";
     if (suggested && suggested !== p.care.frequencyDays &&
