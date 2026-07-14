@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plantkeeper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF2EA;
+  --card:#FBFCF9;
+  --ink:#22392C;
+  --ink-soft:#5B6E60;
+  --moss:#3D7A50;
+  --moss-deep:#2C5E3B;
+  --water:#3E86A8;
+  --water-light:#D9EAF2;
+  --clay:#B85C38;
+  --clay-light:#F4E3DA;
+  --line:#D6DECF;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(34,57,44,.06), 0 6px 18px rgba(34,57,44,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Karla',system-ui,sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  min-height:100vh;
+  line-height:1.5;
+}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--water);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
+/* ---------- Header ---------- */
+header{
+  max-width:1040px;margin:0 auto;padding:28px 20px 10px;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:12px}
+.brand svg{flex:none}
+h1{font-family:'Fraunces',serif;font-weight:600;font-size:1.7rem;letter-spacing:-.01em}
+.brand small{display:block;color:var(--ink-soft);font-size:.85rem;font-weight:400}
+nav{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px}
+nav button{
+  padding:8px 18px;border-radius:999px;font-weight:700;font-size:.92rem;color:var(--ink-soft);
+  transition:background .15s,color .15s;
+}
+nav button[aria-selected="true"]{background:var(--moss);color:#fff}
+nav button:hover:not([aria-selected="true"]){background:var(--paper)}
+
+main{max-width:1040px;margin:0 auto;padding:18px 20px 80px}
+.view{display:none}
+.view.active{display:block}
+
+/* ---------- Today strip ---------- */
+.today-strip{
+  display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;
+}
+.today-chip{
+  display:flex;align-items:center;gap:8px;background:var(--water-light);
+  border:1px solid #BFD9E6;color:#1F4B60;border-radius:999px;padding:6px 14px;font-size:.9rem;font-weight:700;
+}
+.today-chip.overdue{background:var(--clay-light);border-color:#E0BFA9;color:#7A3A1D}
+.today-chip button{font-weight:700;text-decoration:underline;font-size:.85rem}
+
+/* ---------- Add plant ---------- */
+.panel{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px;margin-bottom:26px;
+}
+.panel h2{font-family:'Fraunces',serif;font-weight:600;font-size:1.2rem;margin-bottom:4px}
+.panel .hint{color:var(--ink-soft);font-size:.9rem;margin-bottom:14px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:5px;min-width:180px;flex:1}
+.field label{font-size:.82rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em}
+.field input[type=text],.field input[type=number],.field input[type=date],.field input[type=password],.field select{
+  padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;width:100%;
+}
+.photo-pick{
+  display:flex;align-items:center;gap:10px;border:1.5px dashed var(--line);border-radius:9px;
+  padding:8px 12px;background:#fff;color:var(--ink-soft);font-size:.9rem;cursor:pointer;
+}
+.photo-pick img{width:38px;height:38px;object-fit:cover;border-radius:7px}
+.btn{
+  padding:11px 20px;border-radius:9px;font-weight:700;font-size:.95rem;
+  transition:transform .08s,box-shadow .15s;
+}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--moss);color:#fff}
+.btn-primary:hover{background:var(--moss-deep)}
+.btn-water{background:var(--water);color:#fff}
+.btn-water:hover{background:#33718F}
+.btn-ghost{border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn-ghost:hover{background:var(--paper)}
+.btn-danger{background:none;color:var(--clay);font-weight:700}
+.btn:disabled{opacity:.55;cursor:wait}
+.status-line{margin-top:12px;font-size:.9rem;color:var(--ink-soft);min-height:1.2em}
+.status-line.err{color:var(--clay);font-weight:700}
+details.manual{margin-top:14px}
+details.manual summary{cursor:pointer;color:var(--ink-soft);font-size:.9rem;font-weight:700}
+details.manual .form-row{margin-top:12px}
+
+/* ---------- Cards ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+.plant-card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;
+  transition:box-shadow .15s;
+}
+.plant-card:hover{box-shadow:0 2px 4px rgba(34,57,44,.08),0 10px 26px rgba(34,57,44,.12)}
+.plant-card .photo{
+  height:150px;background:linear-gradient(160deg,#DCE7D6,#C6D8C9);
+  display:flex;align-items:center;justify-content:center;position:relative;
+}
+.plant-card .photo img{width:100%;height:100%;object-fit:cover}
+.plant-card .photo .placeholder{font-size:2.4rem}
+.plant-card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+.plant-card h3{font-family:'Fraunces',serif;font-weight:600;font-size:1.12rem}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.gauge{flex:none;width:44px;text-align:center}
+.gauge svg{display:block;margin:0 auto}
+.gauge .lbl{font-size:.68rem;font-weight:700;color:var(--ink-soft);margin-top:2px;line-height:1.15}
+.due-line{font-size:.88rem;color:var(--ink-soft)}
+.due-line strong{color:var(--ink)}
+.due-line.overdue strong{color:var(--clay)}
+.card-actions{display:flex;gap:8px;margin-top:auto}
+.card-actions .btn{padding:8px 12px;font-size:.86rem;flex:1}
+
+/* ---------- Modal ---------- */
+dialog{
+  border:none;border-radius:16px;padding:0;max-width:560px;width:calc(100% - 32px);
+  box-shadow:0 20px 60px rgba(34,57,44,.3);background:var(--card);color:var(--ink);
+}
+dialog::backdrop{background:rgba(34,57,44,.45)}
+.modal-inner{padding:22px 24px 24px;max-height:82vh;overflow-y:auto}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px}
+.modal-head h2{font-family:'Fraunces',serif;font-weight:600;font-size:1.4rem}
+.close-x{font-size:1.4rem;line-height:1;color:var(--ink-soft);padding:4px 8px}
+.modal-photo{width:100%;height:210px;object-fit:cover;border-radius:12px;margin:10px 0 14px}
+.info-list{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.info-item{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:.92rem}
+.info-item b{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--moss-deep);margin-bottom:2px}
+.water-log{font-size:.9rem;color:var(--ink-soft)}
+.modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.checkup-box{background:var(--water-light);border:1px solid #BFD9E6;border-radius:10px;padding:12px 14px;margin-top:14px;font-size:.92rem}
+.checkup-box b{color:#1F4B60}
+.inline-edit{display:flex;align-items:center;gap:8px;font-size:.9rem;margin-top:8px;flex-wrap:wrap}
+.inline-edit input{padding:6px 9px;border:1px solid var(--line);border-radius:7px}
+
+/* ---------- Calendar ---------- */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-head h2{font-family:'Fraunces',serif;font-weight:600;font-size:1.3rem}
+.cal-nav{display:flex;gap:8px}
+.cal-nav button{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 13px;font-weight:700}
+.cal-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+}
+.cal-dow{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);text-align:center;padding:4px 0}
+.cal-cell{
+  background:var(--card);border:1px solid var(--line);border-radius:10px;min-height:86px;padding:6px;
+  font-size:.8rem;display:flex;flex-direction:column;gap:4px;
+}
+.cal-cell.dim{opacity:.4}
+.cal-cell.today{border-color:var(--moss);border-width:2px}
+.cal-cell .d{font-weight:700;color:var(--ink-soft)}
+.cal-cell.today .d{color:var(--moss-deep)}
+.cal-plant{
+  background:var(--water-light);color:#1F4B60;border-radius:6px;padding:2px 6px;
+  font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;
+}
+.cal-plant.overdue{background:var(--clay-light);color:#7A3A1D}
+@media (max-width:640px){
+  .cal-cell{min-height:64px;padding:4px}
+  .cal-plant{font-size:.62rem;padding:1px 4px}
+}
+
+/* ---------- Settings ---------- */
+.settings .panel{max-width:620px}
+.settings p{font-size:.92rem;color:var(--ink-soft);margin-bottom:12px}
+.settings a{color:var(--moss-deep)}
+
+.empty{
+  text-align:center;color:var(--ink-soft);padding:40px 16px;font-size:.95rem;
+  border:1.5px dashed var(--line);border-radius:var(--radius);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+      <path d="M20 4C13 12 9 18 9 25a11 11 0 0 0 22 0c0-7-4-13-11-21Z" fill="#3E86A8"/>
+      <path d="M20 12c4 4 6 8 6 12" stroke="#D9EAF2" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+      <path d="M20 33c0-6 3-9 8-10" stroke="#2C5E3B" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    </svg>
+    <div>
+      <h1>Plantkeeper</h1>
+      <small>Water on time, every time</small>
+    </div>
+  </div>
+  <nav role="tablist" aria-label="Views">
+    <button role="tab" aria-selected="true" data-view="plants">Plants</button>
+    <button role="tab" aria-selected="false" data-view="calendar">Calendar</button>
+    <button role="tab" aria-selected="false" data-view="settings">Settings</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ PLANTS VIEW ============ -->
+  <section id="view-plants" class="view active">
+    <div id="todayStrip" class="today-strip"></div>
+
+    <div class="panel">
+      <h2>Add a plant</h2>
+      <p class="hint">Give it a name and (optionally) a photo. AI drafts the care plan — watering schedule, sun, repotting, warning signs.</p>
+      <div class="form-row">
+        <div class="field" style="flex:1.4">
+          <label for="npName">Plant name</label>
+          <input type="text" id="npName" placeholder="e.g. Monstera deliciosa, or “big fern by the window”">
+        </div>
+        <div class="field">
+          <label for="npPhoto">Photo (optional)</label>
+          <label class="photo-pick" id="npPhotoLabel">
+            <span id="npPhotoText">📷 Choose photo…</span>
+            <input type="file" id="npPhoto" accept="image/*" hidden>
+          </label>
+        </div>
+        <button class="btn btn-primary" id="npAiBtn">✨ Add with AI care plan</button>
+      </div>
+      <div class="status-line" id="npStatus"></div>
+      <details class="manual">
+        <summary>No API key? Add it manually instead</summary>
+        <div class="form-row">
+          <div class="field"><label for="npFreq">Water every (days)</label><input type="number" id="npFreq" min="1" value="7"></div>
+          <div class="field"><label for="npAmount">How much water</label><input type="text" id="npAmount" placeholder="e.g. 1 cup / until it drains"></div>
+          <button class="btn btn-ghost" id="npManualBtn">Add manually</button>
+        </div>
+      </details>
+    </div>
+
+    <div id="plantGrid" class="grid"></div>
+    <div id="plantsEmpty" class="empty" hidden>No plants yet. Add your first one above 🌱</div>
+  </section>
+
+  <!-- ============ CALENDAR VIEW ============ -->
+  <section id="view-calendar" class="view">
+    <div class="cal-head">
+      <h2 id="calTitle">Month</h2>
+      <div class="cal-nav">
+        <button id="calPrev" aria-label="Previous month">‹</button>
+        <button id="calToday">Today</button>
+        <button id="calNext" aria-label="Next month">›</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </section>
+
+  <!-- ============ SETTINGS VIEW ============ -->
+  <section id="view-settings" class="view settings">
+    <div class="panel">
+      <h2>Gemini API key</h2>
+      <p>Plantkeeper runs entirely in your browser. To use the AI features, paste your own free Gemini API key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>. It's stored only in this browser's local storage — never uploaded anywhere else.</p>
+      <div class="form-row">
+        <div class="field"><label for="apiKey">API key</label><input type="password" id="apiKey" placeholder="AIza..."></div>
+        <button class="btn btn-primary" id="saveKeyBtn">Save key</button>
+      </div>
+      <div class="status-line" id="keyStatus"></div>
+    </div>
+    <div class="panel">
+      <h2>Backup</h2>
+      <p>Everything lives in this browser. Export a backup file to move to another device, or if you clear browser data.</p>
+      <div class="form-row">
+        <button class="btn btn-ghost" id="exportBtn">Export data</button>
+        <label class="btn btn-ghost" style="text-align:center">Import data<input type="file" id="importFile" accept=".json" hidden></label>
+        <button class="btn btn-danger" id="wipeBtn">Delete everything</button>
+      </div>
+      <div class="status-line" id="backupStatus"></div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ PLANT DETAIL MODAL ============ -->
+<dialog id="plantModal">
+  <div class="modal-inner" id="modalInner"></div>
+</dialog>
+
+<script>
+"use strict";
+
+/* ================= State & storage ================= */
+const LS_KEY = "plantkeeper.v1";
+let state = { plants: [], apiKey: "" };
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) state = Object.assign({ plants: [], apiKey: "" }, JSON.parse(raw));
+  } catch (e) { console.warn("Could not load saved data", e); }
+}
+function save() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  } catch (e) {
+    alert("Couldn't save — browser storage may be full. Try removing a photo or exporting a backup.");
+  }
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const fmtDate = iso => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function nextWaterISO(p) {
+  const base = new Date((p.lastWatered || todayISO()) + "T12:00:00");
+  base.setDate(base.getDate() + (p.care.frequencyDays || 7));
+  return base.toISOString().slice(0, 10);
+}
+function daysUntil(iso) {
+  const a = new Date(todayISO() + "T12:00:00"), b = new Date(iso + "T12:00:00");
+  return Math.round((b - a) / 86400000);
+}
+
+/* ================= Image compression ================= */
+function compressImage(file, maxDim = 640, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Couldn't read that image")); };
+    img.src = url;
+  });
+}
+
+/* ================= Gemini ================= */
+const GEMINI_URL = key =>
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`;
+
+async function geminiJSON(promptText, photoDataUrl) {
+  if (!state.apiKey) throw new Error("NO_KEY");
+  const parts = [{ text: promptText }];
+  if (photoDataUrl) {
+    parts.push({ inline_data: { mime_type: "image/jpeg", data: photoDataUrl.split(",")[1] } });
+  }
+  const res = await fetch(GEMINI_URL(state.apiKey), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts }],
+      generationConfig: { temperature: 0.3, responseMimeType: "application/json" }
+    })
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`API error ${res.status}${body ? ": " + body.slice(0, 160) : ""}`);
+  }
+  const data = await res.json();
+  let text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+  text = text.replace(/```json|```/g, "").trim();
+  return JSON.parse(text);
+}
+
+const CARE_PROMPT = name => `You are a houseplant care expert. The user has a plant named "${name}". A photo may be attached — if so, use it to confirm or correct the species identification.
+Respond with ONLY a JSON object (no markdown, no extra text) with exactly these keys:
+{
+ "identifiedAs": "likely species / common name",
+ "frequencyDays": <integer, typical days between waterings indoors>,
+ "waterAmount": "short practical guidance, e.g. 'about 1 cup, until water drains from the pot'",
+ "sunlight": "light needs in one short sentence",
+ "repotting": "when/how often to repot in one short sentence",
+ "overwaterSigns": "short list-style sentence of signs of overwatering",
+ "underwaterSigns": "short list-style sentence of signs of underwatering",
+ "sunSigns": "short sentence: signs of too much vs too little sun",
+ "tip": "one genuinely useful care tip for this plant"
+}`;
+
+const CHECKUP_PROMPT = p => `You are a houseplant care expert doing a photo check-up of "${p.name}" (${p.care.identifiedAs || "unknown species"}). Current schedule: watered every ${p.care.frequencyDays} days, ${p.care.waterAmount || "amount unspecified"}. Last watered: ${p.lastWatered || "unknown"}.
+Look at the attached photo and respond with ONLY a JSON object (no markdown) with exactly these keys:
+{
+ "health": "one short sentence on how the plant looks",
+ "issues": "any visible problems (yellowing, drooping, pests, burn), or 'None visible'",
+ "advice": "the single most useful adjustment the owner should make right now",
+ "suggestedFrequencyDays": <integer — the recommended days between waterings going forward; repeat the current value if no change needed>
+}`;
+
+/* ================= Tabs ================= */
+document.querySelectorAll("nav [data-view]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav [data-view]").forEach(b => b.setAttribute("aria-selected", b === btn));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    document.getElementById("view-" + btn.dataset.view).classList.add("active");
+    if (btn.dataset.view === "calendar") renderCalendar();
+  });
+});
+
+/* ================= Add plant ================= */
+let pendingPhoto = null;
+const npPhoto = document.getElementById("npPhoto");
+document.getElementById("npPhotoLabel").addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); npPhoto.click(); }
+});
+npPhoto.addEventListener("change", async () => {
+  const f = npPhoto.files[0];
+  if (!f) return;
+  try {
+    pendingPhoto = await compressImage(f);
+    document.getElementById("npPhotoText").innerHTML =
+      `<img src="${pendingPhoto}" alt=""> ${esc(f.name.slice(0, 22))}`;
+  } catch (e) { setStatus("npStatus", e.message, true); }
+});
+
+function setStatus(id, msg, isErr) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.toggle("err", !!isErr);
+}
+
+document.getElementById("npAiBtn").addEventListener("click", async () => {
+  const name = document.getElementById("npName").value.trim();
+  if (!name) return setStatus("npStatus", "Give the plant a name first.", true);
+  if (!state.apiKey) return setStatus("npStatus", "Add your Gemini API key in Settings first (or use the manual option below).", true);
+  const btn = document.getElementById("npAiBtn");
+  btn.disabled = true;
+  setStatus("npStatus", "Asking the plant expert…");
+  try {
+    const care = await geminiJSON(CARE_PROMPT(name), pendingPhoto);
+    care.frequencyDays = Math.max(1, parseInt(care.frequencyDays, 10) || 7);
+    addPlant(name, pendingPhoto, care);
+    setStatus("npStatus", `Added ${name} — identified as ${care.identifiedAs || "unknown"}. Water every ${care.frequencyDays} days.`);
+    resetAddForm();
+  } catch (e) {
+    setStatus("npStatus", e.message === "NO_KEY" ? "Add your Gemini API key in Settings first." : "AI request failed — " + e.message, true);
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById("npManualBtn").addEventListener("click", () => {
+  const name = document.getElementById("npName").value.trim();
+  if (!name) return setStatus("npStatus", "Give the plant a name first.", true);
+  const freq = Math.max(1, parseInt(document.getElementById("npFreq").value, 10) || 7);
+  addPlant(name, pendingPhoto, {
+    identifiedAs: "", frequencyDays: freq,
+    waterAmount: document.getElementById("npAmount").value.trim(),
+    sunlight: "", repotting: "", overwaterSigns: "", underwaterSigns: "", sunSigns: "", tip: ""
+  });
+  setStatus("npStatus", `Added ${name}. Water every ${freq} days.`);
+  resetAddForm();
+});
+
+function addPlant(name, photo, care) {
+  state.plants.push({
+    id: uid(), name, photo: photo || null, care,
+    lastWatered: todayISO(), history: [todayISO()], checkup: null
+  });
+  save(); renderPlants();
+}
+function resetAddForm() {
+  document.getElementById("npName").value = "";
+  npPhoto.value = ""; pendingPhoto = null;
+  document.getElementById("npPhotoText").textContent = "📷 Choose photo…";
+}
+
+/* ================= Plant cards ================= */
+function dropletSVG(fill) {
+  // fill: 0 (empty, due now) → 1 (just watered)
+  const f = Math.max(0, Math.min(1, fill));
+  const h = 30, level = 34 - f * h; // clip rect y
+  const color = f <= 0 ? "var(--clay)" : "var(--water)";
+  return `<svg width="34" height="38" viewBox="0 0 34 38" aria-hidden="true">
+    <defs><clipPath id="c${Math.round(f * 100)}"><rect x="0" y="${level}" width="34" height="38"/></clipPath></defs>
+    <path d="M17 2C11 9 7.5 14 7.5 20a9.5 9.5 0 0 0 19 0C26.5 14 23 9 17 2Z" fill="#E4EDE6" stroke="${color}" stroke-width="1.6"/>
+    <path d="M17 2C11 9 7.5 14 7.5 20a9.5 9.5 0 0 0 19 0C26.5 14 23 9 17 2Z" fill="${color}" clip-path="url(#c${Math.round(f * 100)})"/>
+  </svg>`;
+}
+
+function renderPlants() {
+  const grid = document.getElementById("plantGrid");
+  const empty = document.getElementById("plantsEmpty");
+  grid.innerHTML = "";
+  empty.hidden = state.plants.length > 0;
+
+  const sorted = [...state.plants].sort((a, b) => daysUntil(nextWaterISO(a)) - daysUntil(nextWaterISO(b)));
+  for (const p of sorted) {
+    const next = nextWaterISO(p), d = daysUntil(next);
+    const fill = Math.max(0, Math.min(1, d / (p.care.frequencyDays || 7)));
+    const dueTxt = d < 0 ? `overdue by ${-d} day${-d === 1 ? "" : "s"}` : d === 0 ? "due today" : d === 1 ? "tomorrow" : `in ${d} days`;
+    const card = document.createElement("div");
+    card.className = "plant-card";
+    card.innerHTML = `
+      <div class="photo">${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : `<span class="placeholder">🪴</span>`}</div>
+      <div class="body">
+        <div class="card-top">
+          <div>
+            <h3>${esc(p.name)}</h3>
+            <div class="due-line ${d <= 0 ? "overdue" : ""}">Water <strong>${dueTxt}</strong><br>every ${p.care.frequencyDays} days · last ${fmtDate(p.lastWatered)}</div>
+          </div>
+          <div class="gauge">${dropletSVG(fill)}<div class="lbl">${d <= 0 ? "water!" : d + "d left"}</div></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-water" data-water="${p.id}">💧 Watered</button>
+          <button class="btn btn-ghost" data-open="${p.id}">Details</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  }
+  renderTodayStrip();
+}
+
+function renderTodayStrip() {
+  const strip = document.getElementById("todayStrip");
+  const due = state.plants.filter(p => daysUntil(nextWaterISO(p)) <= 0);
+  strip.innerHTML = due.length === 0
+    ? (state.plants.length ? `<div class="today-chip">✅ Nothing needs water today</div>` : "")
+    : due.map(p => {
+        const d = daysUntil(nextWaterISO(p));
+        return `<div class="today-chip ${d < 0 ? "overdue" : ""}">💧 ${esc(p.name)} ${d < 0 ? `(${-d}d overdue)` : "today"} <button data-water="${p.id}">done</button></div>`;
+      }).join("");
+}
+
+document.addEventListener("click", e => {
+  const w = e.target.closest("[data-water]");
+  if (w) { markWatered(w.dataset.water); return; }
+  const o = e.target.closest("[data-open]");
+  if (o) openModal(o.dataset.open);
+});
+
+function markWatered(id, dateISO) {
+  const p = state.plants.find(x => x.id === id);
+  if (!p) return;
+  p.lastWatered = dateISO || todayISO();
+  p.history = (p.history || []).concat(p.lastWatered).slice(-60);
+  save(); renderPlants(); renderCalendar();
+  if (document.getElementById("plantModal").open) openModal(id); // refresh modal if visible
+}
+
+/* ================= Detail modal ================= */
+const modal = document.getElementById("plantModal");
+
+function openModal(id) {
+  const p = state.plants.find(x => x.id === id);
+  if (!p) return;
+  const c = p.care, next = nextWaterISO(p), d = daysUntil(next);
+  const rows = [
+    ["Identified as", c.identifiedAs], ["How much water", c.waterAmount],
+    ["Sunlight", c.sunlight], ["Repotting", c.repotting],
+    ["Too much water looks like", c.overwaterSigns], ["Too little water looks like", c.underwaterSigns],
+    ["Sun trouble looks like", c.sunSigns], ["Tip", c.tip]
+  ].filter(r => r[1]);
+
+  document.getElementById("modalInner").innerHTML = `
+    <div class="modal-head">
+      <h2>${esc(p.name)}</h2>
+      <button class="close-x" data-close aria-label="Close">×</button>
+    </div>
+    <div class="due-line ${d <= 0 ? "overdue" : ""}">Next watering: <strong>${fmtDate(next)}</strong> (${d < 0 ? -d + "d overdue" : d === 0 ? "today" : "in " + d + "d"}) · every ${c.frequencyDays} days</div>
+    ${p.photo ? `<img class="modal-photo" src="${p.photo}" alt="${esc(p.name)}">` : ""}
+    <div class="inline-edit">
+      <label for="lw-${p.id}"><b>Last watered:</b></label>
+      <input type="date" id="lw-${p.id}" value="${p.lastWatered}" max="${todayISO()}">
+      <label for="fq-${p.id}"><b>Every</b></label>
+      <input type="number" id="fq-${p.id}" value="${c.frequencyDays}" min="1" style="width:64px"> days
+      <button class="btn btn-ghost" data-savesched="${p.id}" style="padding:6px 12px;font-size:.85rem">Save</button>
+    </div>
+    ${rows.length ? `<div class="info-list">${rows.map(r => `<div class="info-item"><b>${r[0]}</b>${esc(r[1])}</div>`).join("")}</div>` : ""}
+    ${p.checkup ? `<div class="checkup-box"><b>Last check-up (${fmtDate(p.checkup.date)}):</b> ${esc(p.checkup.health)} ${esc(p.checkup.issues)} <br><b>Advice:</b> ${esc(p.checkup.advice)}</div>` : ""}
+    <div class="water-log" style="margin-top:12px">Watering log: ${(p.history || []).slice(-8).map(fmtDate).join(" · ") || "—"}</div>
+    <div class="modal-actions">
+      <button class="btn btn-water" data-water="${p.id}">💧 Watered today</button>
+      <label class="btn btn-ghost" style="text-align:center">📷 Photo check-up<input type="file" accept="image/*" hidden data-checkup="${p.id}"></label>
+      <button class="btn btn-danger" data-del="${p.id}">Remove plant</button>
+    </div>
+    <div class="status-line" id="modalStatus"></div>`;
+  modal.showModal();
+}
+
+modal.addEventListener("click", e => {
+  if (e.target.closest("[data-close]") || e.target === modal) modal.close();
+  const del = e.target.closest("[data-del]");
+  if (del && confirm("Remove this plant and its history?")) {
+    state.plants = state.plants.filter(x => x.id !== del.dataset.del);
+    save(); modal.close(); renderPlants(); renderCalendar();
+  }
+  const sch = e.target.closest("[data-savesched]");
+  if (sch) {
+    const p = state.plants.find(x => x.id === sch.dataset.savesched);
+    const lw = document.getElementById("lw-" + p.id).value;
+    const fq = Math.max(1, parseInt(document.getElementById("fq-" + p.id).value, 10) || p.care.frequencyDays);
+    if (lw) p.lastWatered = lw;
+    p.care.frequencyDays = fq;
+    save(); renderPlants(); renderCalendar(); openModal(p.id);
+  }
+});
+
+modal.addEventListener("change", async e => {
+  const inp = e.target.closest("[data-checkup]");
+  if (!inp || !inp.files[0]) return;
+  const p = state.plants.find(x => x.id === inp.dataset.checkup);
+  if (!state.apiKey) return setStatus("modalStatus", "Add your Gemini API key in Settings to use photo check-ups.", true);
+  setStatus("modalStatus", "Analyzing photo…");
+  try {
+    const photo = await compressImage(inp.files[0]);
+    const r = await geminiJSON(CHECKUP_PROMPT(p), photo);
+    p.photo = photo; // newest photo becomes the card photo
+    p.checkup = { date: todayISO(), health: r.health || "", issues: r.issues || "", advice: r.advice || "" };
+    const suggested = parseInt(r.suggestedFrequencyDays, 10);
+    let msg = "Check-up saved.";
+    if (suggested && suggested !== p.care.frequencyDays &&
+        confirm(`AI suggests watering every ${suggested} days (currently ${p.care.frequencyDays}). Apply the new schedule?`)) {
+      p.care.frequencyDays = suggested;
+      msg = `Check-up saved — schedule updated to every ${suggested} days.`;
+    }
+    save(); renderPlants(); renderCalendar(); openModal(p.id);
+    setStatus("modalStatus", msg);
+  } catch (err) {
+    setStatus("modalStatus", "Check-up failed — " + err.message, true);
+  }
+});
+
+/* ================= Calendar ================= */
+let calCursor = new Date();
+document.getElementById("calPrev").addEventListener("click", () => { calCursor.setMonth(calCursor.getMonth() - 1); renderCalendar(); });
+document.getElementById("calNext").addEventListener("click", () => { calCursor.setMonth(calCursor.getMonth() + 1); renderCalendar(); });
+document.getElementById("calToday").addEventListener("click", () => { calCursor = new Date(); renderCalendar(); });
+
+function renderCalendar() {
+  const y = calCursor.getFullYear(), m = calCursor.getMonth();
+  document.getElementById("calTitle").textContent =
+    calCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  // map date -> [{plant, overdue}] ; project each plant's schedule across visible range
+  const events = {};
+  const rangeStart = new Date(y, m, 1); rangeStart.setDate(rangeStart.getDate() - 7);
+  const rangeEnd = new Date(y, m + 1, 7);
+  const today = todayISO();
+  for (const p of state.plants) {
+    const freq = p.care.frequencyDays || 7;
+    let cur = new Date(nextWaterISO(p) + "T12:00:00");
+    // overdue plants land on today
+    if (cur.toISOString().slice(0, 10) < today) {
+      (events[today] = events[today] || []).push({ p, overdue: true });
+      cur = new Date(today + "T12:00:00");
+      cur.setDate(cur.getDate() + freq);
+    }
+    let guard = 0;
+    while (cur <= rangeEnd && guard++ < 40) {
+      if (cur >= rangeStart) {
+        const k = cur.toISOString().slice(0, 10);
+        (events[k] = events[k] || []).push({ p, overdue: false });
+      }
+      cur.setDate(cur.getDate() + freq);
+    }
+  }
+
+  const grid = document.getElementById("calGrid");
+  const dows = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join("");
+  const first = new Date(y, m, 1);
+  const start = new Date(first); start.setDate(1 - first.getDay());
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const k = d.toISOString().slice(0, 10);
+    const dim = d.getMonth() !== m;
+    const isToday = k === today;
+    const evs = events[k] || [];
+    html += `<div class="cal-cell ${dim ? "dim" : ""} ${isToday ? "today" : ""}">
+      <span class="d">${d.getDate()}</span>
+      ${evs.map(ev => `<span class="cal-plant ${ev.overdue ? "overdue" : ""}" data-open="${ev.p.id}" role="button" tabindex="0">💧 ${esc(ev.p.name)}</span>`).join("")}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+/* ================= Settings ================= */
+document.getElementById("saveKeyBtn").addEventListener("click", () => {
+  state.apiKey = document.getElementById("apiKey").value.trim();
+  save();
+  setStatus("keyStatus", state.apiKey ? "Key saved to this browser." : "Key cleared.");
+});
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `plantkeeper-backup-${todayISO()}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  setStatus("backupStatus", "Backup downloaded.");
+});
+document.getElementById("importFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data.plants)) throw new Error("Not a Plantkeeper backup");
+      state = Object.assign({ plants: [], apiKey: "" }, data);
+      save(); renderAll();
+      setStatus("backupStatus", `Imported ${state.plants.length} plant(s).`);
+    } catch (err) { setStatus("backupStatus", "Import failed — " + err.message, true); }
+  };
+  r.readAsText(f);
+});
+document.getElementById("wipeBtn").addEventListener("click", () => {
+  if (confirm("Delete ALL plants, history, and your API key from this browser?")) {
+    state = { plants: [], apiKey: "" };
+    localStorage.removeItem(LS_KEY);
+    renderAll();
+    setStatus("backupStatus", "Everything deleted.");
+  }
+});
+
+/* ================= Init ================= */
+function renderAll() {
+  document.getElementById("apiKey").value = state.apiKey || "";
+  renderPlants(); renderCalendar();
+}
+load(); renderAll();
+
+</script>
+</body>
+</html>
