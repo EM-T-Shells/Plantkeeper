@@ -349,7 +349,7 @@ function compressImage(file, maxDim = 640, quality = 0.75) {
 
 /* ================= Gemini ================= */
 const GEMINI_URL = key =>
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`;
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(key)}`;
 
 async function geminiJSON(promptText, photoDataUrl) {
   if (!state.apiKey) throw new Error("NO_KEY");
